@@ -5,29 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>블랙 클릭커</title>
     <style>
-        /* 기본 설정 */
         * { -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; box-sizing: border-box; }
         body { text-align: center; font-family: sans-serif; background: #1a1a1a; color: white; margin: 0; padding: 10px; touch-action: manipulation; }
         #game-container { width: 100%; max-width: 400px; margin: auto; background: #2a2a2a; padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        
-        /* 클릭 영역 */
         .click-pad { background: #333; margin: 20px auto; width: 220px; height: 220px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 4px solid #444; transition: 0.1s; overflow: hidden; }
         .click-pad:active { transform: scale(0.92); border-color: #00ff88; }
-        
-        /* 메인 캐릭터 이미지 스타일 */
         #click-target { width: 180px; height: 180px; object-fit: contain; pointer-events: none; }
-        
         .score-box { font-size: 24px; font-weight: bold; margin: 10px 0; color: #00ff88; }
         button { width: 100%; padding: 15px; font-size: 16px; cursor: pointer; background: #444; color: #fff; border: none; border-radius: 10px; font-weight: bold; margin-bottom: 10px; }
         button:disabled { opacity: 0.3; background: #222; }
-
-        /* 도우미 리스트 */
         #helper-list { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-top: 15px; justify-items: center; }
         .helper-item { width: 50px; height: 50px; border-radius: 50%; border: 2px solid #00ff88; background: #333; display: flex; align-items: center; justify-content: center; overflow: hidden; }
         .helper-item img { width: 100%; height: 100%; object-fit: cover; }
-        
-        #rank-table { width: 100%; margin-top: 20px; border-collapse: collapse; font-size: 13px; background: #111; }
-        #rank-table th, #rank-table td { padding: 8px; border: 1px solid #222; }
     </style>
 </head>
 <body>
@@ -36,64 +25,70 @@
     <h2>블랙 클릭커</h2>
     <div id="setup">
         <input type="text" id="username" placeholder="닉네임" style="width:100%; padding:10px; margin-bottom:10px; border-radius:5px; border:none;">
-        <button onclick="startGame()">시작</button>
+        <button onclick="startGame()">시작하기</button>
     </div>
 
     <div id="play-area" style="display:none;">
         <div class="score-box"><span id="score">0</span>점</div>
         <div id="fever-indicator" style="color:red; height:20px; visibility:hidden; font-weight:bold;">🔥 피버 타임! 🔥</div>
-
         <div class="click-pad" id="main-pad">
-            <img id="click-target" src="black1.jpg" alt="캐릭터">
+            <img id="click-target" src="./black1.jpg" alt="캐릭터">
         </div>
-        
         <button id="buy-btn" onclick="buyHelper()" disabled>도우미 고용 (200점) <br><small>(<span id="h-count">0</span> / 10명)</small></button>
         <div id="helper-list"></div>
-
-        <table id="rank-table">
-            <thead><tr><th>순위</th><th>이름</th><th>점수</th></tr></thead>
-            <tbody id="rank-body"></tbody>
-        </table>
     </div>
 </div>
 
 <script>
-    const IMG_NORMAL = "black1.jpg";  // 평소 (인형)
-    const IMG_CLICK  = "black3.gif";  // 클릭 (FNF GIF)
-    const IMG_HELPER = "black2.jpg";  // 도우미 (만두)
+    const IMG_NORMAL = "./black1.jpg";
+    const IMG_CLICK  = "./black3.gif";
+    const IMG_HELPER = "./black2.jpg";
 
     let score = 0;
-    let isFever = false;
-    let myName = "";
     let helpers = 0;
+    let myName = "";
+    let isFever = false;
+    let restoreTimer = null;
     const MAX_HELPERS = 10;
-    let restoreTimer = null; // 원상복구를 위한 타이머 변수
 
-    // 이미지 미리 불러오기 (끊김 방지)
-    function preload() {
-        [IMG_NORMAL, IMG_CLICK, IMG_HELPER].forEach(src => {
-            const img = new Image();
-            img.src = src;
-        });
+    // 데이터 저장 함수
+    function saveData() {
+        const data = { score, helpers, myName };
+        localStorage.setItem('blackClicker_v2', JSON.stringify(data));
     }
-    preload();
+
+    // 데이터 불러오기 함수
+    function loadData() {
+        const saved = localStorage.getItem('blackClicker_v2');
+        if (saved) {
+            const data = JSON.parse(saved);
+            score = data.score || 0;
+            helpers = data.helpers || 0;
+            myName = data.myName || "";
+            if (myName) document.getElementById('username').value = myName;
+            
+            // 저장된 도우미만큼 비주얼 추가 및 효과 시작
+            for(let i=0; i<helpers; i++) {
+                addHelperVisual();
+                setInterval(() => { score += 2; updateUI(); }, 1000);
+            }
+            updateUI();
+        }
+    }
+
+    window.onload = loadData; // 페이지 켜자마자 데이터 로드
 
     function startGame() {
         myName = document.getElementById('username').value.trim();
-        if(!myName) return alert("이름을 입력하세요");
+        if(!myName) return alert("닉네임을 입력하세요");
         
         document.getElementById('setup').style.display = 'none';
         document.getElementById('play-area').style.display = 'block';
-        document.getElementById('click-target').src = IMG_NORMAL;
+        saveData();
 
         const pad = document.getElementById('main-pad');
-        // 모바일/PC 통합 클릭 이벤트
-        pad.addEventListener('pointerdown', (e) => {
-            e.preventDefault();
-            handleImageClick();
-        });
+        pad.addEventListener('pointerdown', (e) => { e.preventDefault(); handleImageClick(); });
 
-        // 20초마다 5초간 피버타임
         setInterval(() => {
             isFever = true;
             document.getElementById('fever-indicator').style.visibility = 'visible';
@@ -106,21 +101,13 @@
 
     function handleImageClick() {
         const img = document.getElementById('click-target');
-        
-        // 점수 추가
         score += isFever ? 10 : 5;
         updateUI();
+        saveData(); // 점수 얻을 때마다 저장
 
-        // [핵심] GIF 재생 - 매번 새로 재생되도록 캐시 방지 코드(?t=...) 추가
         img.src = IMG_CLICK + "?t=" + new Date().getTime();
-
-        // [핵심] 기존 복구 타이머가 있다면 취소 (연속 클릭 시 중복 방지)
         if (restoreTimer) clearTimeout(restoreTimer);
-
-        // 0.5초(500ms) 후에 다시 원래 인형 이미지로 원상복구
-        restoreTimer = setTimeout(() => {
-            img.src = IMG_NORMAL;
-        }, 500); 
+        restoreTimer = setTimeout(() => { img.src = IMG_NORMAL; }, 500); 
     }
 
     function updateUI() {
@@ -136,6 +123,7 @@
             addHelperVisual();
             setInterval(() => { score += 2; updateUI(); }, 1000);
             updateUI();
+            saveData(); // 도우미 살 때 저장
         }
     }
 
