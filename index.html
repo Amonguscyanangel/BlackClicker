@@ -2,21 +2,37 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>블랙 클릭커</title>
     <style>
-        body { text-align: center; font-family: 'Malgun Gothic', sans-serif; background: #1a1a1a; color: white; margin: 0; padding: 20px; }
-        #game-container { max-width: 500px; margin: auto; background: #2a2a2a; padding: 25px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        .guide { background: #333; padding: 12px; border-radius: 8px; font-size: 14px; text-align: left; margin-bottom: 20px; border-left: 4px solid #00ff88; }
-        #click-target { width: 220px; height: 220px; cursor: pointer; border: 3px solid #444; border-radius: 15px; margin: 15px 0; transition: 0.1s; }
-        #click-target:active { transform: scale(0.95); }
-        .score-box { font-size: 26px; font-weight: bold; margin: 15px 0; color: #00ff88; }
-        .fever-txt { color: #ff4757; font-weight: bold; height: 30px; visibility: hidden; font-size: 1.2em; }
-        button { padding: 12px 20px; cursor: pointer; background: #444; color: #fff; border: 1px solid #666; border-radius: 6px; font-weight: bold; }
-        button:disabled { opacity: 0.4; cursor: not-allowed; }
-        #rank-table { width: 100%; margin-top: 25px; border-collapse: collapse; background: #111; border-radius: 10px; overflow: hidden; }
-        #rank-table th, #rank-table td { padding: 10px; border: 1px solid #222; }
+        /* 모바일 터치 시 파란색 하이라이트 제거 */
+        * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+        
+        body { text-align: center; font-family: 'Malgun Gothic', sans-serif; background: #1a1a1a; color: white; margin: 0; padding: 10px; overflow-x: hidden; }
+        #game-container { width: 100%; max-width: 450px; margin: auto; background: #2a2a2a; padding: 15px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        
+        /* 안내 문구 모바일 최적화 */
+        .guide { background: #333; padding: 10px; border-radius: 8px; font-size: 13px; text-align: left; margin-bottom: 15px; border-left: 4px solid #00ff88; line-height: 1.4; }
+        
+        /* 메인 이미지 사이즈 조정 */
+        #click-target { width: 60vw; height: 60vw; max-width: 220px; max-height: 220px; cursor: pointer; border: 3px solid #444; border-radius: 15px; margin: 10px 0; transition: transform 0.05s; touch-action: manipulation; }
+        #click-target:active { transform: scale(0.92); }
+        
+        .score-box { font-size: 22px; font-weight: bold; margin: 10px 0; color: #00ff88; }
+        .fever-txt { color: #ff4757; font-weight: bold; height: 25px; visibility: hidden; font-size: 1.1em; }
+        
+        /* 버튼 모바일 최적화 (더 크게) */
+        button { width: 100%; padding: 15px; font-size: 16px; cursor: pointer; background: #444; color: #fff; border: 1px solid #666; border-radius: 10px; font-weight: bold; margin-bottom: 8px; }
+        button:disabled { opacity: 0.4; }
+        input { width: 100%; padding: 15px; font-size: 16px; border-radius: 10px; border: none; margin-bottom: 10px; }
+
+        #rank-table { width: 100%; margin-top: 20px; border-collapse: collapse; background: #111; font-size: 14px; border-radius: 10px; overflow: hidden; }
+        #rank-table th, #rank-table td { padding: 12px 8px; border: 1px solid #222; }
         #rank-table th { background: #00ff88; color: #000; }
-        .save-msg { font-size: 12px; color: #888; margin-top: 5px; }
+        .save-msg { font-size: 11px; color: #888; margin-top: 5px; }
+        
+        #helper-list { display: flex; flex-wrap: wrap; justify-content: center; margin-top: 10px; }
+        #helper-list img { width: 35px; height: 35px; margin: 2px; border-radius: 50%; border: 1px solid #00ff88; }
     </style>
 </head>
 <body>
@@ -26,25 +42,25 @@
     
     <div id="setup">
         <p>닉네임을 입력하고 시작하세요!</p>
-        <input type="text" id="username" placeholder="이름" style="padding: 10px; border-radius: 5px; border:none;">
-        <button onclick="startGame()">접속하기</button>
+        <input type="text" id="username" placeholder="이름 (한글/영문)">
+        <button onclick="startGame()">게임 시작하기</button>
     </div>
 
     <div id="play-area" style="display:none;">
         <div class="guide">
             • 클릭: 5점 (피버 시 10점)<br>
-            • 도우미(200점): 초당 +2점 (자동 저장)<br>
-            • <strong>서버 자동 저장 활성화됨</strong>
+            • 도우미(200점): 초당 +2점 (자동 저장)
         </div>
 
         <div class="score-box"><span id="display-name"></span>: <span id="score">0</span>점</div>
-        <div id="fever-indicator" class="fever-txt">🔥 FEVER TIME (2배!) 🔥</div>
+        <div id="fever-indicator" class="fever-txt">🔥 FEVER TIME 🔥</div>
 
-        <img id="click-target" src="https://drive.google.com/thumbnail?id=1yftP1Ph400vovYQfy6cZJ_eteguZrOxf" onclick="handleImageClick()">
+        <img id="click-target" src="https://drive.google.com/thumbnail?id=1yftP1Ph400vovYQfy6cZJ_eteguZrOxf" onclick="handleImageClick()" alt="클릭">
         
-        <div style="margin-top:20px;">
+        <div style="margin-top:15px;">
             <button id="buy-btn" onclick="buyHelper()" disabled>도우미 고용 (200점)</button>
-            <p id="save-status" class="save-msg">서버 연결 중...</p>
+            <p id="save-status" class="save-msg">서버 연결 성공</p>
+            <div id="helper-list"></div>
         </div>
 
         <h3>🏆 실시간 세계 랭킹</h3>
@@ -58,16 +74,17 @@
 <audio id="bgm" loop><source src="https://docs.google.com/uc?export=download&id=1XZF9G_X-X4E3PNT0OGjSti-Bb8WInW66" type="audio/mpeg"></audio>
 
 <script>
-    // ⚠️ npoint.io에서 생성한 본인의 JSON 주소를 여기에 붙여넣으세요!
-    const API_URL = "api.npoint.io/b53e60ca0e85f87b7cca"; 
+    // 본인의 npoint 주소를 여기에 입력하세요!
+    const API_URL = "https://api.npoint.io/b53e60ca0e85f87b7cca"; 
 
     let score = 0;
     let isFever = false;
     let myName = "";
-    let helpers = 0;
+    let helperTimer = null;
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
     function beep(freq) {
+        if(audioCtx.state === 'suspended') audioCtx.resume();
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
         osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
@@ -91,9 +108,7 @@
 
         await loadRanking();
         startFeverTimer();
-        
-        // 30초마다 한 번씩 무조건 자동 저장
-        setInterval(uploadScore, 30000);
+        setInterval(uploadScore, 30000); // 30초 자동 저장
     }
 
     function handleImageClick() {
@@ -113,27 +128,21 @@
         document.getElementById('buy-btn').disabled = (score < 200);
     }
 
-    // 랭킹 불러오기 (서버 -> 내 화면)
     async function loadRanking() {
         try {
             const res = await fetch(API_URL);
             const data = await res.json();
             const tbody = document.getElementById('rank-body');
             tbody.innerHTML = "";
-            // 상위 5명 정렬 표시
             data.sort((a, b) => b.score - a.score).slice(0, 5).forEach((item, index) => {
                 tbody.innerHTML += `<tr><td>${index+1}</td><td>${item.name}</td><td>${item.score}</td></tr>`;
             });
-            document.getElementById('save-status').innerText = "데이터 동기화 완료";
-        } catch(e) {
-            document.getElementById('save-status').innerText = "서버 연결 오류";
-        }
+        } catch(e) {}
     }
 
-    // 점수 업로드 (내 점수 -> 서버)
     async function uploadScore() {
         try {
-            document.getElementById('save-status').innerText = "서버에 자동 저장 중...";
+            document.getElementById('save-status').innerText = "자동 저장 중...";
             const res = await fetch(API_URL);
             let data = await res.json();
             
@@ -150,9 +159,8 @@
                 body: JSON.stringify(data)
             });
             await loadRanking();
-        } catch(e) {
-            console.error("저장 실패", e);
-        }
+            document.getElementById('save-status').innerText = "동기화 완료";
+        } catch(e) {}
     }
 
     function startFeverTimer() {
@@ -162,7 +170,7 @@
             setTimeout(() => {
                 isFever = false;
                 document.getElementById('fever-indicator').style.visibility = 'hidden';
-                uploadScore(); // 피버 타임 종료 시 자동 저장
+                uploadScore();
             }, 5000);
         }, 15000);
     }
@@ -170,14 +178,18 @@
     function buyHelper() {
         if(score >= 200) {
             score -= 200;
-            helpers++;
             beep(250);
             updateUI();
+            
+            const hImg = document.createElement('img');
+            hImg.src = "https://drive.google.com/thumbnail?id=1uyEPyTO7XKd5-Erpc_pVZpPLm94h_I4V";
+            document.getElementById('helper-list').appendChild(hImg);
+
             setInterval(() => { 
                 score += 2; 
                 updateUI(); 
             }, 1000);
-            uploadScore(); // 도우미 구입 시 자동 저장
+            uploadScore();
         }
     }
 </script>
