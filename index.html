@@ -15,7 +15,7 @@
         button { width: 100%; padding: 15px; font-size: 16px; cursor: pointer; background: #444; color: #fff; border: none; border-radius: 10px; font-weight: bold; margin-bottom: 10px; }
         button:disabled { opacity: 0.3; background: #222; }
         #helper-list { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-top: 15px; justify-items: center; }
-        .helper-item { width: 50px; height: 50px; border-radius: 50%; border: 2px solid #00ff88; background: #333; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        .helper-item { width: 45px; height: 45px; border-radius: 50%; border: 2px solid #00ff88; background: #333; overflow: hidden; }
         .helper-item img { width: 100%; height: 100%; object-fit: cover; }
     </style>
 </head>
@@ -24,13 +24,13 @@
 <div id="game-container">
     <h2>블랙 클릭커</h2>
     <div id="setup">
-        <input type="text" id="username" placeholder="닉네임" style="width:100%; padding:10px; margin-bottom:10px; border-radius:5px; border:none;">
+        <input type="text" id="username" placeholder="닉네임 입력" style="width:100%; padding:12px; margin-bottom:10px; border-radius:8px; border:none; outline:none;">
         <button onclick="startGame()">게임 시작</button>
     </div>
 
     <div id="play-area" style="display:none;">
         <div class="score-box"><span id="score">0</span>점</div>
-        <div id="fever-indicator" style="color:red; height:20px; visibility:hidden; font-weight:bold;">🔥 피버 타임! 🔥</div>
+        <div id="fever-indicator" style="color:red; height:20px; visibility:hidden; font-weight:bold;">🔥 FEVER TIME! 🔥</div>
         <div class="click-pad" id="main-pad">
             <img id="click-target" src="" alt="캐릭터">
         </div>
@@ -39,15 +39,15 @@
     </div>
 </div>
 
-<audio id="bgm" loop>
-    <source src="https://docs.google.com/uc?export=download&id=1XZF9G_X-X4E3PNT0OGjSti-Bb8WInW66" type="audio/ogg">
+<audio id="bgm" loop preload="auto">
+    <source src="https://docs.google.com/uc?export=download&id=1XZF9G_X-X4E3PNT0OGjSti-Bb8WInW66" type="audio/mpeg">
 </audio>
 
 <script>
-    // 구글 드라이브 직접 링크 변환 [cite: 1, 2, 3]
-    const IMG_CLICK  = "https://docs.google.com/uc?export=download&id=1nthPZ7Oc7SoerxJ9Erno_Zd_5JJSem-E"; // 클릭 상태
-    const IMG_HELPER = "https://docs.google.com/uc?export=download&id=1uyEPyTO7XKd5-Erpc_pVZpPLm94h_I4V"; // 도우미
-    const IMG_NORMAL = "https://docs.google.com/uc?export=download&id=1yftP1Ph400vovYQfy6cZJ_eteguZrOxf"; // 가만히 있는 상태
+    // 이미지 링크 설정
+    const IMG_NORMAL = "https://docs.google.com/uc?export=download&id=1nthPZ7Oc7SoerxJ9Erno_Zd_5JJSem-E"; // 기본 (움짤)
+    const IMG_HELPER = "https://docs.google.com/uc?export=download&id=1uyEPyTO7XKd5-Erpc_pVZpPLm94h_I4V"; // 도우미 (만두)
+    const IMG_CLICK  = "https://docs.google.com/uc?export=download&id=1yftP1Ph400vovYQfy6cZJ_eteguZrOxf"; // 클릭 시 (인형)
 
     let score = 0;
     let helpers = 0;
@@ -56,14 +56,9 @@
     let restoreTimer = null;
     const MAX_HELPERS = 10;
 
-    // 데이터 저장
-    function saveData() {
-        localStorage.setItem('blackClicker_save', JSON.stringify({ score, helpers, myName }));
-    }
-
-    // 데이터 불러오기
+    // 데이터 로드 및 UI 업데이트 (초기화 방지용)
     function loadData() {
-        const saved = localStorage.getItem('blackClicker_save');
+        const saved = localStorage.getItem('black_clicker_v3');
         if (saved) {
             const data = JSON.parse(saved);
             score = data.score || 0;
@@ -73,24 +68,29 @@
             
             for(let i=0; i<helpers; i++) {
                 addHelperVisual();
-                startHelperInterval();
+                setInterval(() => { score += 2; updateUI(); }, 1000);
             }
             updateUI();
         }
+    }
+
+    function saveData() {
+        localStorage.setItem('black_clicker_v3', JSON.stringify({ score, helpers, myName }));
     }
 
     window.onload = loadData;
 
     function startGame() {
         myName = document.getElementById('username').value.trim();
-        if(!myName) return alert("닉네임을 입력하세요");
+        if(!myName) return alert("닉네임을 입력하세요!");
         
         document.getElementById('setup').style.display = 'none';
         document.getElementById('play-area').style.display = 'block';
+        
+        // 시작 시 기본 움짤 표시
         document.getElementById('click-target').src = IMG_NORMAL;
         
-        // BGM 재생 시작
-        document.getElementById('bgm').play().catch(() => console.log("BGM 재생을 위해 화면을 클릭해주세요."));
+        document.getElementById('bgm').play().catch(() => {});
         saveData();
 
         document.getElementById('main-pad').addEventListener('pointerdown', (e) => {
@@ -114,9 +114,15 @@
         updateUI();
         saveData();
 
-        img.src = IMG_CLICK; 
+        // 1. 클릭 시 이미지로 변경 (인형 이미지)
+        img.src = IMG_CLICK;
+
+        // 2. 0.3초 뒤에 다시 기본 움짤로 원상복구
         if (restoreTimer) clearTimeout(restoreTimer);
-        restoreTimer = setTimeout(() => { img.src = IMG_NORMAL; }, 300); 
+        restoreTimer = setTimeout(() => {
+            // 움짤이 처음부터 다시 나오게 하려면 캐시 방지 파라미터 추가
+            img.src = IMG_NORMAL + "&t=" + new Date().getTime();
+        }, 300); 
     }
 
     function updateUI() {
@@ -130,7 +136,7 @@
             score -= 200;
             helpers++;
             addHelperVisual();
-            startHelperInterval();
+            setInterval(() => { score += 2; updateUI(); }, 1000);
             updateUI();
             saveData();
         }
@@ -141,10 +147,6 @@
         div.className = "helper-item";
         div.innerHTML = `<img src="${IMG_HELPER}">`;
         document.getElementById('helper-list').appendChild(div);
-    }
-
-    function startHelperInterval() {
-        setInterval(() => { score += 2; updateUI(); }, 1000);
     }
 </script>
 </body>
