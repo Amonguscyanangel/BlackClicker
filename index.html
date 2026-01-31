@@ -3,17 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>블랙 클릭커</title>
+    <title>블랙 클릭커 최적화 버전</title>
     <style>
         * { -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; box-sizing: border-box; }
         body { text-align: center; font-family: 'Malgun Gothic', sans-serif; background: #1a1a1a; color: white; margin: 0; padding: 10px; overflow-x: hidden; touch-action: manipulation; }
         #game-container { width: 100%; max-width: 450px; margin: auto; background: #2a2a2a; padding: 15px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         
-        /* 클릭 영역 */
         .click-pad { background: #333; margin: 15px auto; width: 260px; height: 260px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 5px solid #444; transition: transform 0.05s; overflow: hidden; }
         .click-pad:active { transform: scale(0.92); background: #444; }
         
-        /* 메인 이미지 */
         #click-target { width: 180px; height: 180px; object-fit: contain; pointer-events: none; }
         
         .score-box { font-size: 26px; font-weight: bold; margin: 10px 0; color: #00ff88; }
@@ -21,7 +19,7 @@
         
         button { width: 100%; padding: 16px; font-size: 16px; cursor: pointer; background: #444; color: #fff; border: 2px solid #555; border-radius: 12px; font-weight: bold; margin-bottom: 8px; }
         button:disabled { opacity: 0.4; }
-        input { width: 100%; padding: 15px; font-size: 16px; border-radius: 10px; border: none; margin-bottom: 15px; text-align: center; }
+        input { width: 100%; padding: 15px; font-size: 16px; border-radius: 10px; border: none; margin-bottom: 15px; text-align: center; background: #eee; }
 
         #rank-table { width: 100%; margin-top: 15px; border-collapse: collapse; background: #111; font-size: 13px; }
         #rank-table th, #rank-table td { padding: 10px; border: 1px solid #222; }
@@ -47,7 +45,7 @@
         <div id="fever-indicator" class="fever-txt">🔥 FEVER TIME 🔥</div>
 
         <div class="click-pad" id="main-pad">
-            <img id="click-target" src="" alt="CLICK">
+            <img id="click-target" src="" alt="준비 중...">
         </div>
         
         <div>
@@ -71,17 +69,22 @@
 <script>
     const API_URL = "https://api.npoint.io/b53e60ca0e85f87b7cca"; 
     
-    // 이미지 주소 설정 (순서 변경됨)
-    const IMG_NORMAL = "https://docs.google.com/uc?export=view&id=1nthPZ7Oc7SoerxJ9Erno_Zd_5JJSem-E"; // 기본 (움짤)
-    const IMG_CLICK = "https://docs.google.com/uc?export=view&id=1yftP1Ph400vovYQfy6cZJ_eteguZrOxf";  // 클릭 (인형)
-    const IMG_HELPER = "https://docs.google.com/uc?export=view&id=1uyEPyTO7XKd5-Erpc_pVZpPLm94h_I4V"; // 도우미 (만두)
+    // 최적화된 직접 다운로드 경로 (export=download 사용)
+    const IMG_NORMAL = "https://docs.google.com/uc?export=download&id=1nthPZ7Oc7SoerxJ9Erno_Zd_5JJSem-E"; // 기본 (움짤)
+    const IMG_CLICK = "https://docs.google.com/uc?export=download&id=1yftP1Ph400vovYQfy6cZJ_eteguZrOxf";  // 클릭 (인형)
+    const IMG_HELPER = "https://docs.google.com/uc?export=download&id=1uyEPyTO7XKd5-Erpc_pVZpPLm94h_I4V"; // 도우미 (만두)
 
-    let score = 0;
-    let isFever = false;
-    let myName = "";
-    let helpersCount = 0;
-    let restoreTimer = null;
+    let score = 0, helpersCount = 0, myName = "", isFever = false, restoreTimer = null;
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    // [최적화] 이미지 프리로딩 함수
+    function preloadImages() {
+        [IMG_NORMAL, IMG_CLICK, IMG_HELPER].forEach(src => {
+            const img = new Image();
+            img.src = src;
+        });
+    }
+    preloadImages();
 
     function beep(freq) {
         if(audioCtx.state === 'suspended') audioCtx.resume();
@@ -103,11 +106,11 @@
         document.getElementById('click-target').src = IMG_NORMAL;
         
         const bgm = document.getElementById('bgm');
-        bgm.volume = 0.5;
+        bgm.volume = 0.4;
         bgm.play().catch(()=>{});
 
-        // 로컬 데이터 불러오기
-        const saved = localStorage.getItem('blackClickerData_v4');
+        // 데이터 복구
+        const saved = localStorage.getItem('blackClicker_v5');
         if(saved) {
             const data = JSON.parse(saved);
             score = data.score || 0;
@@ -121,37 +124,40 @@
         }
 
         const pad = document.getElementById('main-pad');
-        // 모바일 터치 및 클릭 이벤트
         pad.addEventListener('pointerdown', (e) => { 
             e.preventDefault(); 
             handleImageClick(); 
         });
 
-        await loadRanking();
-        startFeverTimer();
+        loadRanking();
+        setInterval(() => {
+            isFever = true;
+            document.getElementById('fever-indicator').style.visibility = 'visible';
+            setTimeout(() => {
+                isFever = false;
+                document.getElementById('fever-indicator').style.visibility = 'hidden';
+            }, 5000);
+        }, 15000);
         
-        // 자동 저장 루프 (10초마다 서버+로컬 저장)
         setInterval(() => { 
             uploadScore(); 
-            localStorage.setItem('blackClickerData_v4', JSON.stringify({score, helpers: helpersCount, name: myName})); 
+            localStorage.setItem('blackClicker_v5', JSON.stringify({score, helpers: helpersCount, name: myName})); 
         }, 10000);
     }
 
     function handleImageClick() {
-        beep(isFever ? 700 : 400);
+        beep(isFever ? 650 : 400);
         const img = document.getElementById('click-target');
         
-        // 클릭 상태 이미지(인형)로 변경
-        img.src = IMG_CLICK;
-        
+        img.src = IMG_CLICK; // 클릭 시 인형
         score += isFever ? 10 : 5;
         updateUI();
 
-        // [핵심] 0.15초 후 다시 기본 움짤로 복구 (캐시 방지 파라미터 추가)
         if (restoreTimer) clearTimeout(restoreTimer);
         restoreTimer = setTimeout(() => { 
-            img.src = IMG_NORMAL + "&t=" + new Date().getTime(); 
-        }, 150);
+            // 원상복구 시 캐시를 방지하여 GIF가 멈추지 않게 함
+            img.src = IMG_NORMAL + "&t=" + Date.now(); 
+        }, 200);
     }
 
     function updateUI() {
@@ -180,20 +186,9 @@
             if(userIndex > -1) { data[userIndex].score = Math.max(data[userIndex].score, score); }
             else { data.push({ name: myName, score: score }); }
             await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-            await loadRanking();
+            loadRanking();
             document.getElementById('save-status').innerText = "자동 저장 완료";
         } catch(e) {}
-    }
-
-    function startFeverTimer() {
-        setInterval(() => {
-            isFever = true;
-            document.getElementById('fever-indicator').style.visibility = 'visible';
-            setTimeout(() => {
-                isFever = false;
-                document.getElementById('fever-indicator').style.visibility = 'hidden';
-            }, 5000);
-        }, 15000);
     }
 
     function buyHelper() {
