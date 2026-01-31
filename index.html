@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>블랙 클릭커 - 최종 수정</title>
+    <title>블랙 클릭커</title>
     <style>
         * { -webkit-tap-highlight-color: transparent; user-select: none; box-sizing: border-box; }
         body { text-align: center; font-family: sans-serif; background: #1a1a1a; color: white; margin: 0; padding: 10px; touch-action: manipulation; }
@@ -17,13 +17,12 @@
         .score-box { font-size: 28px; font-weight: bold; margin: 10px 0; color: #00ff88; }
         button { width: 100%; padding: 15px; font-size: 16px; cursor: pointer; background: #444; color: #fff; border: none; border-radius: 12px; font-weight: bold; margin-bottom: 10px; }
         button:disabled { opacity: 0.3; }
-        input { width: 100%; padding: 15px; margin-bottom: 10px; border-radius: 8px; border: none; text-align: center; font-size: 16px; background: #eee; }
+        input { width: 100%; padding: 15px; margin-bottom: 10px; border-radius: 8px; border: none; text-align: center; font-size: 16px; }
 
         #rank-table { width: 100%; margin-top: 20px; border-collapse: collapse; background: #111; font-size: 14px; }
         #rank-table th, #rank-table td { padding: 12px; border: 1px solid #222; }
         
-        #helper-list { display: flex; justify-content: center; gap: 5px; flex-wrap: wrap; margin-bottom: 15px; }
-        .helper-img { width: 40px; height: 40px; border-radius: 50%; border: 2px solid #00ff88; }
+        .helper-img { width: 40px; height: 40px; border-radius: 50%; border: 2px solid #00ff88; margin: 2px; }
     </style>
 </head>
 <body>
@@ -42,7 +41,7 @@
         <div id="fever-indicator" style="color:#ff4757; font-weight:bold; visibility:hidden; height:25px;">🔥 FEVER TIME 🔥</div>
         
         <div class="click-pad" id="main-pad">
-            <img id="click-target" src="" alt="">
+            <img id="click-target" src="" alt="준비중">
         </div>
         
         <button id="buy-btn" onclick="buyHelper()" disabled>도우미 고용 (200점)</button>
@@ -57,10 +56,11 @@
 </div>
 
 <script>
-    // 유저 요청대로 webp 확장자 반영 및 파일명 고정
+    // 클릭 시 이미지를 요청하신 구글 드라이브의 black1.webp로 설정 
     const IMG_NORMAL = "black3.gif"; 
-    const IMG_CLICK = "black1.webp";  
+    const IMG_CLICK = "https://docs.google.com/uc?export=view&id=1nthPZ7Oc7SoerxJ9Erno_Zd_5JJSem-E"; 
     const IMG_HELPER = "black2.jpg"; 
+    const API_URL = "https://api.npoint.io/b53e60ca0e85f87b7cca";
 
     let score = 0;
     let helpersCount = 0;
@@ -68,21 +68,20 @@
     let isFever = false;
     let restoreTimer = null;
 
-    // 1. 페이지 로드 시 기기 저장소(LocalStorage)에서 데이터 즉시 복구
+    // 기기 저장 데이터 로드
     window.onload = () => {
-        const savedData = localStorage.getItem('blackClicker_v8');
+        const savedData = localStorage.getItem('blackClicker_final_v9');
         if (savedData) {
             const data = JSON.parse(savedData);
             score = data.score || 0;
             helpersCount = data.helpersCount || 0;
             myName = data.myName || "";
             document.getElementById('username').value = myName;
-            document.getElementById('load-msg').innerText = "기존 저장 데이터를 찾았습니다!";
+            document.getElementById('load-msg').innerText = "이전 기록을 불러왔습니다!";
         }
         preloadImages();
     };
 
-    // 2. 이미지 미리 로딩 (클릭 시 안 뜨는 버그 방지)
     function preloadImages() {
         [IMG_NORMAL, IMG_CLICK, IMG_HELPER].forEach(src => {
             const img = new Image();
@@ -96,19 +95,16 @@
         
         document.getElementById('setup-area').style.display = 'none';
         document.getElementById('play-area').style.display = 'block';
-        
-        // 초기 이미지 설정
         document.getElementById('click-target').src = IMG_NORMAL;
         
-        // 저장된 도우미 만큼 자동 점수 생성기 가동
         for(let i=0; i<helpersCount; i++) {
             renderHelperVisual();
             setInterval(() => { score += 2; updateUI(); }, 1000);
         }
         
         updateUI();
-        // 5초마다 기기에 자동 저장 (강제 저장 시스템)
-        setInterval(saveToDevice, 5000);
+        loadRanking();
+        setInterval(saveToDevice, 5000); // 5초마다 자동 저장
     }
 
     function handleImageClick(e) {
@@ -117,9 +113,9 @@
         
         score += isFever ? 15 : 5;
         updateUI();
-        saveToDevice(); // 클릭할 때마다 실시간 기기 저장
+        saveToDevice();
 
-        // 이미지 교체
+        // 클릭 이미지(black1.webp)로 변경 
         img.src = IMG_CLICK;
         
         if (restoreTimer) clearTimeout(restoreTimer);
@@ -129,8 +125,7 @@
     }
 
     function saveToDevice() {
-        const data = { score, helpersCount, myName };
-        localStorage.setItem('blackClicker_v8', JSON.stringify(data));
+        localStorage.setItem('blackClicker_final_v9', JSON.stringify({ score, helpersCount, myName }));
     }
 
     function updateUI() {
@@ -157,10 +152,20 @@
         hList.appendChild(hImg);
     }
 
-    // 클릭 이벤트 등록
+    async function loadRanking() {
+        try {
+            const res = await fetch(API_URL);
+            const data = await res.json();
+            const tbody = document.getElementById('rank-body');
+            tbody.innerHTML = "";
+            data.sort((a,b)=>b.score-a.score).slice(0, 5).forEach((u, i) => {
+                tbody.innerHTML += `<tr><td>${i+1}</td><td>${u.name}</td><td>${u.score}</td></tr>`;
+            });
+        } catch(e) {}
+    }
+
     document.getElementById('main-pad').addEventListener('pointerdown', handleImageClick);
 
-    // 피버 타임
     setInterval(() => {
         isFever = true;
         document.getElementById('fever-indicator').style.visibility = 'visible';
