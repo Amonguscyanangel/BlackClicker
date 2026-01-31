@@ -8,25 +8,15 @@
         * { -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; box-sizing: border-box; }
         body { text-align: center; font-family: sans-serif; background: #1a1a1a; color: white; margin: 0; padding: 10px; touch-action: manipulation; }
         #game-container { width: 100%; max-width: 400px; margin: auto; background: #2a2a2a; padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        
-        /* 클릭 영역 */
-        .click-pad { background: #333; margin: 20px auto; width: 220px; height: 220px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 4px solid #444; transition: 0.05s; }
-        .click-pad:active { transform: scale(0.95); }
-        
-        /* 메인 캐릭터 이미지 스타일 */
-        #click-target { width: 160px; height: 160px; object-fit: contain; pointer-events: none; }
-        
+        .click-pad { background: #333; margin: 20px auto; width: 220px; height: 220px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 4px solid #444; transition: 0.1s; overflow: hidden; }
+        .click-pad:active { transform: scale(0.92); border-color: #00ff88; }
+        #click-target { width: 180px; height: 180px; object-fit: contain; pointer-events: none; }
         .score-box { font-size: 24px; font-weight: bold; margin: 10px 0; color: #00ff88; }
         button { width: 100%; padding: 15px; font-size: 16px; cursor: pointer; background: #444; color: #fff; border: none; border-radius: 10px; font-weight: bold; margin-bottom: 10px; }
         button:disabled { opacity: 0.3; background: #222; }
-
-        /* 도우미 리스트 */
         #helper-list { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-top: 15px; justify-items: center; }
         .helper-item { width: 50px; height: 50px; border-radius: 50%; border: 2px solid #00ff88; background: #333; display: flex; align-items: center; justify-content: center; overflow: hidden; }
         .helper-item img { width: 100%; height: 100%; object-fit: cover; }
-        
-        #rank-table { width: 100%; margin-top: 20px; border-collapse: collapse; font-size: 13px; background: #111; }
-        #rank-table th, #rank-table td { padding: 8px; border: 1px solid #222; }
     </style>
 </head>
 <body>
@@ -35,140 +25,126 @@
     <h2>블랙 클릭커</h2>
     <div id="setup">
         <input type="text" id="username" placeholder="닉네임" style="width:100%; padding:10px; margin-bottom:10px; border-radius:5px; border:none;">
-        <button onclick="startGame()">시작</button>
+        <button onclick="startGame()">게임 시작</button>
     </div>
 
     <div id="play-area" style="display:none;">
         <div class="score-box"><span id="score">0</span>점</div>
-        <div id="fever-indicator" style="color:red; height:20px; visibility:hidden;">🔥 피버 타임!</div>
-
+        <div id="fever-indicator" style="color:red; height:20px; visibility:hidden; font-weight:bold;">🔥 피버 타임! 🔥</div>
         <div class="click-pad" id="main-pad">
             <img id="click-target" src="" alt="캐릭터">
         </div>
-        
         <button id="buy-btn" onclick="buyHelper()" disabled>도우미 고용 (200점) <br><small>(<span id="h-count">0</span> / 10명)</small></button>
         <div id="helper-list"></div>
-
-        <table id="rank-table">
-            <thead><tr><th>순위</th><th>이름</th><th>점수</th></tr></thead>
-            <tbody id="rank-body"></tbody>
-        </table>
     </div>
 </div>
 
-<audio id="bgm" loop><source src="https://docs.google.com/uc?export=download&id=1XZF9G_X-X4E3PNT0OGjSti-Bb8WInW66" type="audio/mpeg"></audio>
+<audio id="bgm" loop>
+    <source src="https://docs.google.com/uc?export=download&id=1XZF9G_X-X4E3PNT0OGjSti-Bb8WInW66" type="audio/ogg">
+</audio>
 
 <script>
-    const API_URL = "https://api.npoint.io/b53e60ca0e85f87b7cca";
-    
-    // 👇👇 [수정한 부분] 파일 이름을 여기에 연결했습니다! 👇👇
-    const IMG_NORMAL = "black3.gif";  // 평소 상태 (귀여운 인형)
-    const IMG_CLICK  = "black1.jpg";  // 클릭했을 때 (FNF 각성 모드)
-    const IMG_HELPER = "black2.jpg";  // 도우미 (왕만두로 설정함. 원하시면 black1.jpg로 바꾸세요)
+    // 구글 드라이브 직접 링크 변환 [cite: 1, 2, 3]
+    const IMG_CLICK  = "https://docs.google.com/uc?export=download&id=1nthPZ7Oc7SoerxJ9Erno_Zd_5JJSem-E"; // 클릭 상태
+    const IMG_HELPER = "https://docs.google.com/uc?export=download&id=1uyEPyTO7XKd5-Erpc_pVZpPLm94h_I4V"; // 도우미
+    const IMG_NORMAL = "https://docs.google.com/uc?export=download&id=1yftP1Ph400vovYQfy6cZJ_eteguZrOxf"; // 가만히 있는 상태
 
     let score = 0;
-    let isFever = false;
-    let myName = "";
     let helpers = 0;
+    let myName = "";
+    let isFever = false;
+    let restoreTimer = null;
     const MAX_HELPERS = 10;
 
-    async function startGame() {
+    // 데이터 저장
+    function saveData() {
+        localStorage.setItem('blackClicker_save', JSON.stringify({ score, helpers, myName }));
+    }
+
+    // 데이터 불러오기
+    function loadData() {
+        const saved = localStorage.getItem('blackClicker_save');
+        if (saved) {
+            const data = JSON.parse(saved);
+            score = data.score || 0;
+            helpers = data.helpers || 0;
+            myName = data.myName || "";
+            if (myName) document.getElementById('username').value = myName;
+            
+            for(let i=0; i<helpers; i++) {
+                addHelperVisual();
+                startHelperInterval();
+            }
+            updateUI();
+        }
+    }
+
+    window.onload = loadData;
+
+    function startGame() {
         myName = document.getElementById('username').value.trim();
-        if(!myName) return alert("이름을 입력하세요");
+        if(!myName) return alert("닉네임을 입력하세요");
         
         document.getElementById('setup').style.display = 'none';
         document.getElementById('play-area').style.display = 'block';
-        
-        // 게임 시작 시 기본 이미지 설정
         document.getElementById('click-target').src = IMG_NORMAL;
         
-        document.getElementById('bgm').play().catch(()=>{});
+        // BGM 재생 시작
+        document.getElementById('bgm').play().catch(() => console.log("BGM 재생을 위해 화면을 클릭해주세요."));
+        saveData();
 
-        // 저장된 데이터 불러오기
-        const saved = localStorage.getItem('blackClickerData');
-        if(saved) {
-            const data = JSON.parse(saved);
-            score = data.score || 0;
-            const savedH = Math.min(data.helpers || 0, MAX_HELPERS);
-            for(let i=0; i<savedH; i++) { helpers++; addHelperVisual(); startHelperInterval(); }
-            updateUI();
-        }
+        document.getElementById('main-pad').addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            handleImageClick();
+        });
 
-        const pad = document.getElementById('main-pad');
-        pad.addEventListener('touchstart', (e) => { e.preventDefault(); handleImageClick(); });
-        pad.addEventListener('mousedown', (e) => { if('ontouchstart' in window) return; handleImageClick(); });
-
-        loadRanking();
-        setInterval(() => { uploadScore(); localStorage.setItem('blackClickerData', JSON.stringify({score, helpers, name:myName})); }, 15000);
-        
-        // 피버 타임 루프
         setInterval(() => {
-            isFever = true; document.getElementById('fever-indicator').style.visibility = 'visible';
-            setTimeout(() => { isFever = false; document.getElementById('fever-indicator').style.visibility = 'hidden'; }, 5000);
+            isFever = true;
+            document.getElementById('fever-indicator').style.visibility = 'visible';
+            setTimeout(() => {
+                isFever = false;
+                document.getElementById('fever-indicator').style.visibility = 'hidden';
+            }, 5000);
         }, 20000);
     }
 
     function handleImageClick() {
         const img = document.getElementById('click-target');
-        
-        // 클릭 시 이미지 변경
-        img.src = IMG_CLICK;
-        
         score += isFever ? 10 : 5;
         updateUI();
-        
-        // 0.15초 뒤에 다시 원래대로 복구
-        setTimeout(() => { img.src = IMG_NORMAL; }, 150);
+        saveData();
+
+        img.src = IMG_CLICK; 
+        if (restoreTimer) clearTimeout(restoreTimer);
+        restoreTimer = setTimeout(() => { img.src = IMG_NORMAL; }, 300); 
     }
 
     function updateUI() {
         document.getElementById('score').innerText = Math.floor(score);
         document.getElementById('h-count').innerText = helpers;
         document.getElementById('buy-btn').disabled = (score < 200 || helpers >= MAX_HELPERS);
-        if(helpers >= MAX_HELPERS) document.getElementById('buy-btn').innerText = "도우미 정원 초과";
     }
 
     function buyHelper() {
         if(score >= 200 && helpers < MAX_HELPERS) {
-            score -= 200; helpers++;
-            addHelperVisual(); startHelperInterval(); updateUI();
+            score -= 200;
+            helpers++;
+            addHelperVisual();
+            startHelperInterval();
+            updateUI();
+            saveData();
         }
     }
 
     function addHelperVisual() {
         const div = document.createElement('div');
         div.className = "helper-item";
-        // 도우미 이미지 연결
         div.innerHTML = `<img src="${IMG_HELPER}">`;
         document.getElementById('helper-list').appendChild(div);
     }
 
     function startHelperInterval() {
         setInterval(() => { score += 2; updateUI(); }, 1000);
-    }
-
-    async function loadRanking() {
-        try {
-            const res = await fetch(API_URL);
-            const data = await res.json();
-            const tbody = document.getElementById('rank-body');
-            tbody.innerHTML = "";
-            data.sort((a,b)=>b.score-a.score).slice(0,5).forEach((v,i)=>{
-                tbody.innerHTML += `<tr><td>${i+1}</td><td>${v.name}</td><td>${v.score}</td></tr>`;
-            });
-        } catch(e){}
-    }
-
-    async function uploadScore() {
-        try {
-            const res = await fetch(API_URL);
-            let data = await res.json();
-            const idx = data.findIndex(u=>u.name===myName);
-            if(idx>-1) data[idx].score = Math.max(data[idx].score, score);
-            else data.push({name:myName, score});
-            await fetch(API_URL, {method:'POST', body:JSON.stringify(data)});
-            loadRanking();
-        } catch(e){}
     }
 </script>
 </body>
