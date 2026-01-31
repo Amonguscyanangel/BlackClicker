@@ -13,22 +13,22 @@
         .click-pad { background: #333; margin: 15px auto; width: 260px; height: 260px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 5px solid #444; transition: transform 0.05s; }
         .click-pad:active { transform: scale(0.92); background: #444; }
         
-        /* 메인 이미지 */
-        #click-target { width: 180px; height: 180px; border-radius: 15px; object-fit: contain; pointer-events: none; }
+        /* 메인 이미지 - 로딩 전에도 영역을 차지하도록 설정 */
+        #click-target { width: 180px; height: 180px; border-radius: 15px; object-fit: contain; pointer-events: none; background-color: rgba(255,255,255,0.05); }
         
         .score-box { font-size: 26px; font-weight: bold; margin: 10px 0; color: #00ff88; }
         .fever-txt { color: #ff4757; font-weight: bold; height: 30px; visibility: hidden; font-size: 1.2em; }
         
         button { width: 100%; padding: 16px; font-size: 16px; cursor: pointer; background: #444; color: #fff; border: 2px solid #555; border-radius: 12px; font-weight: bold; margin-bottom: 8px; }
         button:disabled { opacity: 0.4; }
-        input { width: 100%; padding: 15px; font-size: 16px; border-radius: 10px; border: none; margin-bottom: 15px; text-align: center; }
+        input { width: 100%; padding: 15px; font-size: 16px; border-radius: 10px; border: none; margin-bottom: 15px; text-align: center; background: #333; color: white; }
 
         #rank-table { width: 100%; margin-top: 15px; border-collapse: collapse; background: #111; font-size: 13px; }
         #rank-table th, #rank-table td { padding: 10px; border: 1px solid #222; }
         #rank-table th { background: #00ff88; color: #000; }
         
         #helper-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 15px; min-height: 40px; }
-        .helper-img { width: 45px; height: 45px; border-radius: 50%; border: 2px solid #00ff88; object-fit: cover; background: #444; }
+        .helper-img { width: 45px; height: 45px; border-radius: 50%; border: 2px solid #00ff88; object-fit: cover; }
         .status-msg { font-size: 11px; color: #888; margin: 5px 0; }
     </style>
 </head>
@@ -47,7 +47,7 @@
         <div id="fever-indicator" class="fever-txt">🔥 FEVER TIME 🔥</div>
 
         <div class="click-pad" id="main-pad">
-            <img id="click-target" src="https://docs.google.com/uc?export=view&id=1yftP1Ph400vovYQfy6cZJ_eteguZrOxf" alt="CLICK">
+            <img id="click-target" src="" alt="로딩중...">
         </div>
         
         <div>
@@ -64,17 +64,19 @@
     </div>
 </div>
 
-<audio id="bgm" loop>
-    <source src="https://docs.google.com/uc?export=download&id=1XZF9G_X-X4E3PNT0OGjSti-Bb8WInW66" type="audio/mpeg">
-</audio>
+<audio id="bgm" loop><source src="https://docs.google.com/uc?export=download&id=1XZF9G_X-X4E3PNT0OGjSti-Bb8WInW66" type="audio/mpeg"></audio>
 
 <script>
     const API_URL = "https://api.npoint.io/b53e60ca0e85f87b7cca"; 
     
-    // 이미지 주소 설정
-    const IMG_NORMAL = "https://docs.google.com/uc?export=view&id=1yftP1Ph400vovYQfy6cZJ_eteguZrOxf";
-    const IMG_CLICK = "https://docs.google.com/uc?export=view&id=1nthPZ7Oc7SoerxJ9Erno_Zd_5JJSem-E";
-    const IMG_HELPER = "https://docs.google.com/uc?export=view&id=1uyEPyTO7XKd5-Erpc_pVZpPLm94h_I4V";
+    // 주소 형식 최적화 (uc?id= 형식이 가장 안정적임)
+    const IMG_NORMAL = "https://docs.google.com/uc?id=1yftP1Ph400vovYQfy6cZJ_eteguZrOxf";
+    const IMG_CLICK = "https://docs.google.com/uc?id=1nthPZ7Oc7SoerxJ9Erno_Zd_5JJSem-E";
+    const IMG_HELPER = "https://docs.google.com/uc?id=1uyEPyTO7XKd5-Erpc_pVZpPLm94h_I4V";
+
+    // 이미지 사전 로딩 객체
+    const preloadedImg = new Image();
+    preloadedImg.src = IMG_CLICK;
 
     let score = 0;
     let isFever = false;
@@ -95,15 +97,14 @@
     async function startGame() {
         myName = document.getElementById('username').value.trim();
         if(!myName) return alert("닉네임을 입력해주세요!");
+        
+        document.getElementById('click-target').src = IMG_NORMAL; // 시작할 때 이미지 설정
         document.getElementById('setup').style.display = 'none';
         document.getElementById('play-area').style.display = 'block';
         document.getElementById('display-name').innerText = myName;
         
-        const bgm = document.getElementById('bgm');
-        bgm.volume = 0.5;
-        bgm.play().catch(()=>{});
+        try { document.getElementById('bgm').play(); } catch(e) {}
 
-        // 기기 데이터 불러오기
         const saved = localStorage.getItem('blackClickerData');
         if(saved) {
             const data = JSON.parse(saved);
@@ -113,9 +114,9 @@
             updateUI();
         }
 
-        // 모바일 터치 이벤트 최적화
         const pad = document.getElementById('main-pad');
         pad.addEventListener('touchstart', (e) => { e.preventDefault(); handleImageClick(); });
+        pad.addEventListener('mousedown', (e) => { if('ontouchstart' in window) return; handleImageClick(); });
 
         await loadRanking();
         startFeverTimer();
@@ -126,14 +127,16 @@
         beep(isFever ? 700 : 400);
         const img = document.getElementById('click-target');
         
-        // 클릭 상태 이미지로 변경
+        // 클릭 이미지로 교체
         img.src = IMG_CLICK;
         
         score += isFever ? 10 : 5;
         updateUI();
 
-        // 0.1초 후 다시 가만히 있는 이미지로 변경
-        setTimeout(() => { img.src = IMG_NORMAL; }, 100);
+        // 0.15초 후 다시 평소 이미지로 (모바일에서 보일 수 있게 시간을 아주 조금 늘림)
+        setTimeout(() => {
+            img.src = IMG_NORMAL;
+        }, 1500); // 0.15초
     }
 
     function updateUI() {
@@ -163,7 +166,7 @@
             else { data.push({ name: myName, score: score }); }
             await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
             await loadRanking();
-            document.getElementById('save-status').innerText = "자동 저장 완료";
+            document.getElementById('save-status').innerText = "동기화 완료";
         } catch(e) {}
     }
 
@@ -190,11 +193,10 @@
     }
 
     function addHelperVisual() {
-        const hList = document.getElementById('helper-list');
         const hImg = document.createElement('img');
-        hImg.src = IMG_HELPER; // 도우미 이미지 적용
+        hImg.src = IMG_HELPER;
         hImg.className = "helper-img";
-        hList.appendChild(hImg);
+        document.getElementById('helper-list').appendChild(hImg);
     }
 
     function startHelperInterval() {
