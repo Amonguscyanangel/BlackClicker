@@ -10,26 +10,27 @@
         #game-container { width: 100%; max-width: 450px; margin: auto; background: #2a2a2a; padding: 15px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         
         /* 클릭 영역 */
-        .click-pad { background: #333; margin: 15px auto; width: 260px; height: 260px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 5px solid #444; transition: transform 0.05s; }
-        .click-pad:active { transform: scale(0.92); background: #444; }
+        .click-pad { background: #333; margin: 15px auto; width: 250px; height: 250px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 5px solid #444; transition: transform 0.05s; }
+        .click-pad:active { transform: scale(0.92); }
         
-        /* 메인 이미지 - 로딩 전에도 영역을 차지하도록 설정 */
-        #click-target { width: 180px; height: 180px; border-radius: 15px; object-fit: contain; pointer-events: none; background-color: rgba(255,255,255,0.05); }
+        /* 메인 이미지 설정 */
+        #click-target { width: 180px; height: 180px; border-radius: 15px; object-fit: contain; pointer-events: none; }
         
         .score-box { font-size: 26px; font-weight: bold; margin: 10px 0; color: #00ff88; }
         .fever-txt { color: #ff4757; font-weight: bold; height: 30px; visibility: hidden; font-size: 1.2em; }
         
         button { width: 100%; padding: 16px; font-size: 16px; cursor: pointer; background: #444; color: #fff; border: 2px solid #555; border-radius: 12px; font-weight: bold; margin-bottom: 8px; }
-        button:disabled { opacity: 0.4; }
+        button:disabled { opacity: 0.3; cursor: not-allowed; background: #222; }
         input { width: 100%; padding: 15px; font-size: 16px; border-radius: 10px; border: none; margin-bottom: 15px; text-align: center; background: #333; color: white; }
 
         #rank-table { width: 100%; margin-top: 15px; border-collapse: collapse; background: #111; font-size: 13px; }
         #rank-table th, #rank-table td { padding: 10px; border: 1px solid #222; }
         #rank-table th { background: #00ff88; color: #000; }
         
-        #helper-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 15px; min-height: 40px; }
-        .helper-img { width: 45px; height: 45px; border-radius: 50%; border: 2px solid #00ff88; object-fit: cover; }
-        .status-msg { font-size: 11px; color: #888; margin: 5px 0; }
+        /* 도우미 리스트 스타일 */
+        #helper-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 15px; min-height: 50px; }
+        .helper-item { width: 45px; height: 45px; border-radius: 50%; border: 2px solid #00ff88; background: #444; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        .helper-img { width: 100%; height: 100%; object-fit: cover; }
     </style>
 </head>
 <body>
@@ -39,7 +40,7 @@
     
     <div id="setup">
         <input type="text" id="username" placeholder="닉네임 입력">
-        <button onclick="startGame()">게임 시작 / 불러오기</button>
+        <button onclick="startGame()">게임 시작</button>
     </div>
 
     <div id="play-area" style="display:none;">
@@ -51,8 +52,7 @@
         </div>
         
         <div>
-            <button id="buy-btn" onclick="buyHelper()" disabled>도우미 고용 (200점)</button>
-            <p id="save-status" class="status-msg">동기화 대기 중...</p>
+            <button id="buy-btn" onclick="buyHelper()" disabled>도우미 고용 (200점) [<span id="h-count">0</span>/10]</button>
             <div id="helper-list"></div>
         </div>
 
@@ -69,20 +69,20 @@
 <script>
     const API_URL = "https://api.npoint.io/b53e60ca0e85f87b7cca"; 
     
-    // 주소 형식 최적화 (uc?id= 형식이 가장 안정적임)
-    const IMG_NORMAL = "https://docs.google.com/uc?id=1yftP1Ph400vovYQfy6cZJ_eteguZrOxf";
-    const IMG_CLICK = "https://docs.google.com/uc?id=1nthPZ7Oc7SoerxJ9Erno_Zd_5JJSem-E";
-    const IMG_HELPER = "https://docs.google.com/uc?id=1uyEPyTO7XKd5-Erpc_pVZpPLm94h_I4V";
-
-    // 이미지 사전 로딩 객체
-    const preloadedImg = new Image();
-    preloadedImg.src = IMG_CLICK;
+    // 이미지 주소 (보안 차단을 줄이기 위한 주소 형식)
+    const IMG_NORMAL = "https://docs.google.com/uc?export=view&id=1yftP1Ph400vovYQfy6cZ_eteguZrOxf";
+    const IMG_CLICK = "https://docs.google.com/uc?export=view&id=1nthPZ7Oc7SoerxJ9Erno_Zd_5JJSem-E";
+    const IMG_HELPER = "https://docs.google.com/uc?export=view&id=1uyEPyTO7XKd5-Erpc_pVZpPLm94h_I4V";
 
     let score = 0;
     let isFever = false;
     let myName = "";
     let helpers = 0;
+    const maxHelpers = 10; // 도우미 최대 인원
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    // 이미지 사전 로딩
+    const preImg = new Image(); preImg.src = IMG_CLICK;
 
     function beep(freq) {
         if(audioCtx.state === 'suspended') audioCtx.resume();
@@ -98,19 +98,24 @@
         myName = document.getElementById('username').value.trim();
         if(!myName) return alert("닉네임을 입력해주세요!");
         
-        document.getElementById('click-target').src = IMG_NORMAL; // 시작할 때 이미지 설정
+        document.getElementById('click-target').src = IMG_NORMAL;
         document.getElementById('setup').style.display = 'none';
         document.getElementById('play-area').style.display = 'block';
         document.getElementById('display-name').innerText = myName;
         
-        try { document.getElementById('bgm').play(); } catch(e) {}
+        document.getElementById('bgm').play().catch(()=>{});
 
+        // 저장 데이터 불러오기
         const saved = localStorage.getItem('blackClickerData');
         if(saved) {
             const data = JSON.parse(saved);
             score = data.score || 0;
-            helpers = data.helpers || 0;
-            for(let i=0; i<helpers; i++) { addHelperVisual(); startHelperInterval(); }
+            const savedHelpers = Math.min(data.helpers || 0, maxHelpers);
+            for(let i=0; i<savedHelpers; i++) {
+                helpers++;
+                addHelperVisual();
+                startHelperInterval();
+            }
             updateUI();
         }
 
@@ -126,22 +131,26 @@
     function handleImageClick() {
         beep(isFever ? 700 : 400);
         const img = document.getElementById('click-target');
-        
-        // 클릭 이미지로 교체
         img.src = IMG_CLICK;
         
         score += isFever ? 10 : 5;
         updateUI();
 
-        // 0.15초 후 다시 평소 이미지로 (모바일에서 보일 수 있게 시간을 아주 조금 늘림)
-        setTimeout(() => {
-            img.src = IMG_NORMAL;
-        }, 1500); // 0.15초
+        setTimeout(() => { img.src = IMG_NORMAL; }, 120);
     }
 
     function updateUI() {
         document.getElementById('score').innerText = Math.floor(score);
-        document.getElementById('buy-btn').disabled = (score < 200);
+        document.getElementById('h-count').innerText = helpers;
+        
+        // 도우미가 10명이면 버튼 비활성화
+        const buyBtn = document.getElementById('buy-btn');
+        if(helpers >= maxHelpers) {
+            buyBtn.disabled = true;
+            buyBtn.innerText = "도우미 정원 초과 (최대 10명)";
+        } else {
+            buyBtn.disabled = (score < 200);
+        }
     }
 
     async function loadRanking() {
@@ -158,7 +167,6 @@
 
     async function uploadScore() {
         try {
-            document.getElementById('save-status').innerText = "저장 중...";
             const res = await fetch(API_URL);
             let data = await res.json();
             const userIndex = data.findIndex(u => u.name === myName);
@@ -166,7 +174,6 @@
             else { data.push({ name: myName, score: score }); }
             await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
             await loadRanking();
-            document.getElementById('save-status').innerText = "동기화 완료";
         } catch(e) {}
     }
 
@@ -182,7 +189,7 @@
     }
 
     function buyHelper() {
-        if(score >= 200) {
+        if(score >= 200 && helpers < maxHelpers) {
             score -= 200;
             helpers++;
             beep(250);
@@ -193,10 +200,18 @@
     }
 
     function addHelperVisual() {
-        const hImg = document.createElement('img');
-        hImg.src = IMG_HELPER;
-        hImg.className = "helper-img";
-        document.getElementById('helper-list').appendChild(hImg);
+        const hList = document.getElementById('helper-list');
+        const div = document.createElement('div');
+        div.className = "helper-item";
+        
+        const img = document.createElement('img');
+        img.src = IMG_HELPER;
+        img.className = "helper-img";
+        // 이미지가 안 뜰 경우 '👤' 표시
+        img.onerror = function() { this.style.display='none'; div.innerText='👤'; };
+        
+        div.appendChild(img);
+        hList.appendChild(div);
     }
 
     function startHelperInterval() {
