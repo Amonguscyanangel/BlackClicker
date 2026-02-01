@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>블랙 클릭커 - 분할 모드</title>
+    <title>블랙 클릭커</title>
     <style>
         * { -webkit-tap-highlight-color: transparent; user-select: none; box-sizing: border-box; }
         body { 
@@ -11,54 +11,54 @@
             font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; 
         }
 
-        /* 상단 영역: 점수와 피버 고정 */
+        /* 상단 영역: 점수 고정 */
         #header-area { 
-            height: 20%; display: flex; flex-direction: column; justify-content: center; align-items: center;
-            background: #222; border-bottom: 2px solid #00ff88; width: 100%;
+            height: 15%; display: flex; flex-direction: column; justify-content: center; align-items: center;
+            background: #222; border-bottom: 2px solid #00ff88; width: 100%; z-index: 10;
         }
-        .score-box { font-size: 40px; font-weight: bold; color: #00ff88; text-shadow: 0 0 10px rgba(0,255,136,0.3); }
-        #fever-indicator { color: #ff4757; font-weight: bold; font-size: 16px; margin-top: 5px; height: 20px; }
+        .score-box { font-size: 36px; font-weight: bold; color: #00ff88; }
+        #fever-indicator { color: #ff4757; font-weight: bold; font-size: 14px; visibility: hidden; }
 
-        /* 중앙 영역: 클릭 패드 전용 */
-        #main-area { 
-            flex: 1; display: flex; justify-content: center; align-items: center; background: #1a1a1a; 
-        }
+        /* 중앙 영역: 클릭 패드 */
+        #main-area { flex: 1; display: flex; justify-content: center; align-items: center; background: #1a1a1a; }
         .click-pad { 
-            width: 260px; height: 260px; border-radius: 50%; background: #333;
+            width: 220px; height: 220px; border-radius: 50%; background: #333;
             display: flex; align-items: center; justify-content: center; 
-            cursor: pointer; border: 8px solid #444; box-shadow: 0 0 30px rgba(0,0,0,0.5);
+            cursor: pointer; border: 6px solid #444; transition: transform 0.05s;
         }
-        .click-pad:active { transform: scale(0.95); border-color: #00ff88; }
-        #click-target { width: 200px; height: 200px; object-fit: contain; pointer-events: none; transition: transform 0.05s; }
+        .click-pad:active { transform: scale(0.92); border-color: #00ff88; }
+        #click-target { width: 170px; height: 170px; object-fit: contain; pointer-events: none; }
 
-        /* 하단 영역: 상점 및 랭킹 (스크롤 가능) */
+        /* 하단 영역: 상점 및 무한 랭킹 */
         #footer-area { 
-            height: 35%; background: #2a2a2a; border-top-left-radius: 30px; border-top-right-radius: 30px;
-            padding: 20px; overflow-y: auto; box-shadow: 0 -10px 20px rgba(0,0,0,0.3);
+            height: 45%; background: #2a2a2a; border-top-left-radius: 25px; border-top-right-radius: 25px;
+            padding: 15px; overflow-y: auto; box-shadow: 0 -10px 20px rgba(0,0,0,0.3);
         }
         
-        button { width: 100%; padding: 15px; font-size: 16px; cursor: pointer; background: #444; color: #fff; border: none; border-radius: 12px; font-weight: bold; margin-bottom: 10px; }
+        button { width: 100%; padding: 12px; font-size: 15px; cursor: pointer; background: #444; color: #fff; border: none; border-radius: 10px; font-weight: bold; margin-bottom: 8px; }
         button:disabled { opacity: 0.3; }
-        input { width: 100%; padding: 15px; margin-bottom: 10px; border-radius: 10px; border: none; text-align: center; background: #333; color: white; border: 1px solid #555; }
-
-        #rank-table { width: 100%; margin-top: 10px; border-collapse: collapse; background: #111; font-size: 13px; }
-        #rank-table th, #rank-table td { padding: 10px; border: 1px solid #222; text-align: center; }
-        #rank-table th { background: #333; color: #00ff88; }
         
-        #setup-area { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; padding: 20px; }
+        /* 랭킹 스타일 */
+        .rank-section-title { font-size: 14px; color: #00ff88; margin: 10px 0; text-align: left; font-weight: bold; }
+        #rank-table { width: 100%; border-collapse: collapse; background: #111; font-size: 13px; border-radius: 8px; }
+        #rank-table th, #rank-table td { padding: 12px 8px; border-bottom: 1px solid #222; text-align: center; }
+        #rank-table tr.my-rank { background: rgba(0, 255, 136, 0.1); color: #00ff88; font-weight: bold; }
+        
+        #setup-area { position: fixed; inset: 0; background: #1a1a1a; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; padding: 20px; }
+        input { width: 250px; padding: 15px; margin-bottom: 10px; border-radius: 10px; border: 1px solid #444; text-align: center; background: #222; color: white; }
     </style>
 </head>
 <body>
 
 <div id="setup-area">
-    <h1 style="color:#00ff88; margin-bottom: 30px;">BLACK CLICKER</h1>
+    <h1 style="color:#00ff88;">BLACK CLICKER</h1>
     <input type="text" id="username" placeholder="닉네임 입력">
-    <button onclick="entryGame()" style="width: 250px;">데이터 로드 & 시작</button>
+    <button onclick="entryGame()" style="width: 250px;">시작하기</button>
 </div>
 
 <div id="header-area" style="display:none;">
     <div class="score-box"><span id="score">0</span></div>
-    <div id="fever-indicator" style="visibility:hidden;">🔥 FEVER TIME (3x) 🔥</div>
+    <div id="fever-indicator">🔥 FEVER TIME 🔥</div>
 </div>
 
 <div id="main-area" style="display:none;">
@@ -71,9 +71,9 @@
     <button id="buy-btn" onclick="buyHelper()" disabled>도우미 고용 (200점)</button>
     <div id="helper-list" style="display:flex; justify-content:center; flex-wrap:wrap; gap:5px; margin-bottom: 15px;"></div>
     
-    <button onclick="toggleRanking()" id="toggle-btn" style="background:#222; font-size:12px; padding:8px;">전체 랭킹 보기 ▼</button>
+    <div class="rank-section-title">🏆 실시간 전체 랭킹</div>
     <table id="rank-table">
-        <thead><tr><th>순위</th><th>이름</th><th>점수</th></tr></thead>
+        <thead><tr><th>위</th><th>이름</th><th>점수</th></tr></thead>
         <tbody id="rank-body"></tbody>
     </table>
 </div>
@@ -82,10 +82,9 @@
     const IMG_CLICK_DATA = "https://media.discordapp.net/attachments/975684061781700671/1467281375882121236/black.png?ex=697fcfc4&is=697e7e44&hm=ea81982cfd686e4897d6e3c65978b239815233f00aa9db5a8e68185112b87c58&=&format=webp&quality=lossless&width=968&height=968"; 
     const IMG_NORMAL = "black3.gif"; 
     const IMG_HELPER = "black2.jpg"; 
-
-    const preload = new Image(); preload.src = IMG_CLICK_DATA;
     const API_URL = "https://api.npoint.io/b53e60ca0e85f87b7cca";
-    let score = 0, helpersCount = 0, myName = "", isFever = false, restoreTimer = null, showAllRank = false;
+
+    let score = 0, helpersCount = 0, myName = "", isFever = false, restoreTimer = null;
 
     window.onload = () => {
         const saved = localStorage.getItem('blackClicker_storage_v14');
@@ -100,7 +99,7 @@
 
     function entryGame() {
         myName = document.getElementById('username').value.trim();
-        if(!myName) return alert("닉네임을 입력하세요!");
+        if(!myName) return alert("닉네임 입력!");
         
         document.getElementById('setup-area').style.display = 'none';
         document.getElementById('header-area').style.display = 'flex';
@@ -113,29 +112,22 @@
             setInterval(() => { score += 2; updateUI(); }, 1000);
         }
         updateUI();
+        
+        // 실시간 업데이트: 내 점수 전송(3초), 랭킹 불러오기(2초)
+        setInterval(saveData, 3000); 
+        setInterval(loadRanking, 2000); 
         loadRanking();
-        setInterval(saveData, 5000);
     }
 
     function handleImageClick(e) {
         if(e) e.preventDefault();
-        const img = document.getElementById('click-target');
         score += isFever ? 15 : 5;
         updateUI();
 
+        const img = document.getElementById('click-target');
         img.src = IMG_CLICK_DATA;
-        img.style.transform = "scale(1.1)";
         if (restoreTimer) clearTimeout(restoreTimer);
-        restoreTimer = setTimeout(() => {
-            img.src = IMG_NORMAL;
-            img.style.transform = "scale(1)";
-        }, 60); 
-    }
-
-    function toggleRanking() {
-        showAllRank = !showAllRank;
-        document.getElementById('toggle-btn').innerText = showAllRank ? "랭킹 접기 ▲" : "전체 랭킹 보기 ▼";
-        loadRanking();
+        restoreTimer = setTimeout(() => { img.src = IMG_NORMAL; }, 40); 
     }
 
     function saveData() {
@@ -150,12 +142,14 @@
             const idx = data.findIndex(u => u.name === myName);
             if(idx > -1) data[idx].score = Math.max(data[idx].score, score);
             else data.push({name: myName, score: score});
+            
+            // 상위 100명까지 넉넉하게 보존하여 전송
+            const sortedData = data.sort((a,b) => b.score - a.score).slice(0, 100);
             await fetch(API_URL, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(data.sort((a,b) => b.score - a.score).slice(0, 10))
+                body: JSON.stringify(sortedData)
             });
-            loadRanking();
         } catch(e) {}
     }
 
@@ -164,12 +158,14 @@
             const res = await fetch(API_URL);
             const data = await res.json();
             const tbody = document.getElementById('rank-body');
-            tbody.innerHTML = "";
-            const sorted = data.sort((a,b)=>b.score-a.score);
-            const displayList = showAllRank ? sorted.slice(0, 10) : sorted.slice(0, 5);
-            displayList.forEach((u, i) => {
-                tbody.innerHTML += `<tr><td>${i+1}</td><td>${u.name}</td><td>${u.score}</td></tr>`;
+            let html = "";
+            
+            // 모든 데이터 정렬 후 출력
+            data.sort((a,b)=>b.score-a.score).forEach((u, i) => {
+                const isMe = u.name === myName ? "class='my-rank'" : "";
+                html += `<tr ${isMe}><td>${i+1}</td><td>${u.name}</td><td>${Math.floor(u.score).toLocaleString()}</td></tr>`;
             });
+            tbody.innerHTML = html;
         } catch(e) {}
     }
 
@@ -192,12 +188,13 @@
         const hList = document.getElementById('helper-list');
         const hImg = document.createElement('img');
         hImg.src = IMG_HELPER;
-        hImg.style.width = "30px"; hImg.style.height = "30px"; hImg.style.borderRadius = "50%"; hImg.style.border = "2px solid #00ff88";
+        hImg.style = "width:25px; height:25px; border-radius:50%; border:1px solid #00ff88;";
         hList.appendChild(hImg);
     }
 
     document.getElementById('main-pad').addEventListener('pointerdown', handleImageClick);
 
+    // 피버 타임 로직
     setInterval(() => {
         isFever = true;
         document.getElementById('fever-indicator').style.visibility = 'visible';
